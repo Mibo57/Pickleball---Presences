@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Pickleball — gestion des présences</title>
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:14px;background:#f4f6f8;color:#17202a;font-size:16px}
+h1{font-size:1.45rem;margin:4px 0 8px}
+h2{font-size:1.08rem;margin:8px 0 10px}
+p{line-height:1.4}
+.note{font-size:.9rem;color:#52606d}
+.card{background:#fff;border:1px solid #d8dee5;border-radius:14px;padding:12px;margin:12px 0}
+.player{display:flex;align-items:center;gap:10px;min-height:46px;border-bottom:1px solid #edf0f2;padding:5px 0}
+.player:last-child{border-bottom:0}
+.player input[type=checkbox]{width:23px;height:23px;flex:0 0 auto}
+.player input[type=text]{min-width:0;flex:1;width:100%;font-size:16px;padding:8px;border:1px solid #c8d0d8;border-radius:8px}
+.num{font-weight:700;color:#075985;min-width:52px;text-align:right}
+button{font-size:16px;font-weight:600;border:0;border-radius:11px;padding:13px 14px;margin:5px 3px 5px 0;background:#075985;color:#fff;cursor:pointer}
+button.secondary{background:#475569}
+button.danger{background:#9f1239}
+.actions{position:sticky;bottom:0;background:#f4f6f8;padding:8px 0;border-top:1px solid #d8dee5}
+#result{white-space:pre-wrap;line-height:1.55;background:#fff;padding:12px;border:1px solid #d8dee5;border-radius:10px;min-height:40px}
+label{font-weight:600}
+.small{font-size:.86rem}
+</style>
+</head>
+<body>
+<h1>Pickleball — présences et numéros</h1>
+<p class="note">Coche les joueurs présents, puis attribue les numéros. Les Avancés utilisent 1 à 12 et les Experts 13 à 24. Les numéros de la séance précédente sont évités autant que possible.</p>
+
+<section class="card">
+<h2>Avancés — numéros 1 à 12</h2>
+<div id="advanced"></div>
+</section>
+<section class="card">
+<h2>Experts — numéros 13 à 24</h2>
+<div id="experts"></div>
+</section>
+
+<section class="card">
+<h2>Actions</h2>
+<div class="actions">
+<button id="assign">Attribuer les numéros</button>
+<button id="clear" class="secondary">Effacer les coches et résultats</button>
+<button id="saveNames" class="secondary">Enregistrer les noms</button>
+<button id="export" class="secondary">Exporter l’historique</button>
+</div>
+<p class="note">Pour modifier les noms, touche un champ, remplace le nom, puis appuie sur « Enregistrer les noms ». Les données sont gardées dans ce navigateur sur cet appareil. Fais une exportation de temps en temps pour conserver une copie.</p>
+<p id="status" class="note" aria-live="polite"></p>
+</section>
+<section class="card">
+<h2>Résultat de la séance</h2>
+<div id="result">Les numéros attribués apparaîtront ici.</div>
+</section>
+
+<script>
+(function(){
+"use strict";
+const STORE="pickleball_manager_v2";
+const defaultNames=[
+"André Martin","Pierre Gagnon","Michel Roy","Luc Tremblay","Daniel Bouchard","Claude Pelletier","Serge Morin","Jacques Fortin","Paul Bergeron","Robert Gauthier","Gilles Côté","Alain Lefebvre",
+"François Bélanger","Richard Simard","Jean Lapointe","Mario Beaulieu","Denis Lavoie","Yves Paquette","René Girard","Marcel Fournier","Bernard Leclerc","Guy Caron","Sylvain Michaud","Roger Perron"
+];
+let data={names:defaultNames.slice(),lastNumbers:{},history:[]};
+function load(){
+  try{const raw=localStorage.getItem(STORE);if(raw){const parsed=JSON.parse(raw);if(parsed&&Array.isArray(parsed.names)&&parsed.names.length===24){data={names:parsed.names,lastNumbers:parsed.lastNumbers||{},history:parsed.history||[]};}}}catch(e){}
+}
+function persist(){
+  try{localStorage.setItem(STORE,JSON.stringify(data));return true;}catch(e){return false;}
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function renderRoster(){
+  const a=document.getElementById("advanced"),e=document.getElementById("experts");
+  a.innerHTML="";e.innerHTML="";
+  data.names.forEach((name,i)=>{
+    const group=i<12?a:e;
+    const id="p"+i;
+    const row=document.createElement("div");row.className="player";
+    const check=document.createElement("input");check.type="checkbox";check.id="c"+id;check.setAttribute("aria-label","Présence "+name);
+    const field=document.createElement("input");field.type="text";field.id="name"+i;field.value=name;field.autocomplete="off";field.setAttribute("aria-label","Nom du joueur "+(i+1));
+    const num=document.createElement("span");num.className="num";num.id="num"+i;
+    row.append(check,field,num);group.appendChild(row);
+  });
+}
+function readNames(){data.names=data.names.map((_,i)=>document.getElementById("name"+i).value.trim()||("Joueur "+(i+1)));}
+function shuffled(arr){for(let i=arr.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function assignGroup(indices,start){
+  const present=indices.filter(i=>document.getElementById("cp"+i).checked);
+  let available=shuffled(Array.from({length:12},(_,k)=>start+k));
+  const assigned={};
+  // Randomize player order, assigning a non-previous number whenever possible.
+  const order=shuffled(present.slice());
+  order.forEach(i=>{
+    const prev=data.lastNumbers[i];
+    let at=available.findIndex(n=>n!==prev);
+    if(at<0)at=0;
+    assigned[i]=available.splice(at,1)[0];
+  });
+  return assigned;
+}
+function showResult(assigned){
+  const adv=Object.keys(assigned).map(Number).filter(i=>i<12).sort((a,b)=>assigned[a]-assigned[b]);
+  const exp=Object.keys(assigned).map(Number).filter(i=>i>=12).sort((a,b)=>assigned[a]-assigned[b]);
+  const lines=["AVANCÉS"];
+  adv.forEach(i=>lines.push(assigned[i]+" — "+data.names[i]));
+  lines.push("","EXPERTS");
+  exp.forEach(i=>lines.push(assigned[i]+" — "+data.names[i]));
+  document.getElementById("result").textContent=lines.join("\n");
+}
+function assign(){
+  readNames();
+  const adv=assignGroup(Array.from({length:12},(_,i)=>i),1);
+  const exp=assignGroup(Array.from({length:12},(_,i)=>i+12),13);
+  const assigned={...adv,...exp};
+  for(let i=0;i<24;i++)document.getElementById("num"+i).textContent=assigned[i]===undefined?"":"N° "+assigned[i];
+  const session={date:new Date().toLocaleString("fr-CA"),assigned:{},names:data.names.slice()};
+  Object.keys(assigned).forEach(k=>{session.assigned[k]=assigned[k];data.lastNumbers[k]=assigned[k];});
+  data.history.push(session);
+  showResult(assigned);
+  const ok=persist();
+  document.getElementById("status").textContent=ok?"Attribution faite et historique mémorisé sur cet appareil.":"Attribution faite, mais la mémoire du navigateur est bloquée. Utilise « Exporter l’historique » pour garder une copie.";
+}
+function clearSession(){
+  for(let i=0;i<24;i++){document.getElementById("cp"+i).checked=false;document.getElementById("num"+i).textContent="";}
+  document.getElementById("result").textContent="Les numéros attribués apparaîtront ici.";
+  document.getElementById("status").textContent="Les coches et résultats affichés ont été effacés. L’historique des numéros précédents est conservé.";
+}
+function saveNames(){
+  readNames();const ok=persist();
+  document.getElementById("status").textContent=ok?"Noms enregistrés sur cet appareil.":"Noms modifiés à l’écran, mais la mémoire du navigateur est bloquée. Exporte une copie.";
+}
+function exportHistory(){
+  readNames();
+  const lines=["PICKLEBALL — COPIE DE SÉCURITÉ","NOMS"];
+  data.names.forEach((n,i)=>lines.push((i<12?"Avancé ":"Expert ")+(i<12?i+1:i+1)+" — "+n));
+  lines.push("","DERNIERS NUMÉROS");
+  data.names.forEach((n,i)=>{if(data.lastNumbers[i]!==undefined)lines.push(data.lastNumbers[i]+" — "+n);});
+  lines.push("","HISTORIQUE DES SÉANCES");
+  data.history.forEach((s,k)=>{lines.push("Séance "+(k+1)+" — "+s.date);Object.keys(s.assigned).sort((a,b)=>s.assigned[a]-s.assigned[b]).forEach(i=>lines.push(s.assigned[i]+" — "+s.names[Number(i)]));});
+  const text=lines.join("\n");
+  document.getElementById("result").textContent=text;
+  document.getElementById("status").textContent="Copie affichée ci-dessous. Sélectionne et copie le texte, puis colle-le dans Notes ou un courriel pour le conserver.";
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(()=>{document.getElementById("status").textContent="Historique copié si le navigateur a autorisé la copie. Tu peux aussi sélectionner le texte affiché ci-dessous.";}).catch(()=>{});}catch(e){}
+}
+function init(){
+  load();renderRoster();
+  // Ensure checkboxes have stable ids expected by assignGroup.
+  for(let i=0;i<24;i++){const c=document.getElementById("cp"+i);if(c)c.id="cp"+i;}
+  // Build rows with checkbox IDs cp0...cp23 (assign expects these).
+  document.querySelectorAll(".player input[type=checkbox]").forEach((c,i)=>{c.id="cp"+i;});
+  document.getElementById("assign").addEventListener("click",assign);
+  document.getElementById("clear").addEventListener("click",clearSession);
+  document.getElementById("saveNames").addEventListener("click",saveNames);
+  document.getElementById("export").addEventListener("click",exportHistory);
+}
+init();
+})();
+</script>
+</body>
+</html>
