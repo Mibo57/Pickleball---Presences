@@ -27,18 +27,23 @@ button.danger{background:#9f1239}
 #result{white-space:pre-wrap;line-height:1.55;background:#fff;padding:12px;border:1px solid #d8dee5;border-radius:10px;min-height:40px}
 label{font-weight:600}
 .small{font-size:.86rem}
+.mode{display:flex;gap:10px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid #e5e7eb}.mode input{width:22px;height:22px;flex-shrink:0}.mode small{color:#475569;line-height:1.35}.player{display:grid;grid-template-columns:34px minmax(0,1fr) 76px 58px;gap:7px;align-items:center;padding:8px 0;border-bottom:1px solid #e5e7eb}.player input[type=checkbox]{width:22px;height:22px;margin:0}.player input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:16px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.elig{display:flex;align-items:center;justify-content:center;gap:3px;font-size:11px;color:#475569}.num{font-size:13px;text-align:right;font-weight:700;color:#075985}.column-labels{display:grid;grid-template-columns:34px minmax(0,1fr) 76px 58px;gap:7px;color:#64748b;font-size:11px;padding:0 0 5px}.column-labels span:nth-child(3){text-align:center}@media(max-width:420px){.player{grid-template-columns:30px minmax(0,1fr) 70px 48px;gap:5px}.column-labels{grid-template-columns:30px minmax(0,1fr) 70px 48px;gap:5px}.player input[type=text]{font-size:15px;padding:8px}.elig{font-size:10px}}
 </style>
 </head>
 <body>
 <h1>Pickleball — présences et numéros</h1>
-<p class="note">Coche les joueurs présents, puis attribue les numéros. Les Avancés utilisent 1 à 12 et les Experts 13 à 24. Les numéros de la séance précédente sont évités autant que possible.</p>
+<p class="note">Choisis le mode pour cette séance. Dans les deux modes, les numéros précédents sont évités autant que possible et l’historique reste sauvegardé sur cet appareil.</p>
+<section class="card"><h2>Mode de séance</h2>
+<label class="mode"><input type="radio" name="mode" value="normal" checked> <span><b>1. Groupes habituels</b><br><small>Les Avancés restent chez les Avancés et les Experts chez les Experts.</small></span></label>
+<label class="mode"><input type="radio" name="mode" value="balance"> <span><b>2. Équilibrer les groupes</b><br><small>Tu autorises les joueurs qui peuvent changer de groupe. L’application vise des groupes de taille aussi égale que possible.</small></span></label>
+<p class="note">En mode équilibrage, coche « Peut changer » uniquement pour les joueurs que tu acceptes de déplacer.</p><div id="summary" class="note">0 joueur présent.</div></section>
 
 <section class="card">
-<h2>Avancés — numéros 1 à 12</h2>
+<h2>Avancés — numéros 1 à 12</h2><div class="column-labels"><span>Présent</span><span>Nom</span><span>Peut changer</span><span>Numéro</span></div>
 <div id="advanced"></div>
 </section>
 <section class="card">
-<h2>Experts — numéros 13 à 24</h2>
+<h2>Experts — numéros 13 à 24</h2><div class="column-labels"><span>Présent</span><span>Nom</span><span>Peut changer</span><span>Numéro</span></div>
 <div id="experts"></div>
 </section>
 
@@ -61,103 +66,37 @@ label{font-weight:600}
 <script>
 (function(){
 "use strict";
+// Keep the same storage key and data shape as the published version, so prior names/history can be reused.
 const STORE="pickleball_manager_v2";
-const defaultNames=[
-"André Martin","Pierre Gagnon","Michel Roy","Luc Tremblay","Daniel Bouchard","Claude Pelletier","Serge Morin","Jacques Fortin","Paul Bergeron","Robert Gauthier","Gilles Côté","Alain Lefebvre",
-"François Bélanger","Richard Simard","Jean Lapointe","Mario Beaulieu","Denis Lavoie","Yves Paquette","René Girard","Marcel Fournier","Bernard Leclerc","Guy Caron","Sylvain Michaud","Roger Perron"
-];
+const defaultNames=["André Martin","Pierre Gagnon","Michel Roy","Luc Tremblay","Daniel Bouchard","Claude Pelletier","Serge Morin","Jacques Fortin","Paul Bergeron","Robert Gauthier","Gilles Côté","Alain Lefebvre","François Bélanger","Richard Simard","Jean Lapointe","Mario Beaulieu","Denis Lavoie","Yves Paquette","René Girard","Marcel Fournier","Bernard Leclerc","Guy Caron","Sylvain Michaud","Roger Perron"];
 let data={names:defaultNames.slice(),lastNumbers:{},history:[]};
-function load(){
-  try{const raw=localStorage.getItem(STORE);if(raw){const parsed=JSON.parse(raw);if(parsed&&Array.isArray(parsed.names)&&parsed.names.length===24){data={names:parsed.names,lastNumbers:parsed.lastNumbers||{},history:parsed.history||[]};}}}catch(e){}
+function load(){try{const raw=localStorage.getItem(STORE);if(raw){const p=JSON.parse(raw);if(p&&Array.isArray(p.names)&&p.names.length===24)data={names:p.names,lastNumbers:p.lastNumbers||{},history:p.history||[]};}}catch(e){}}
+function persist(){try{localStorage.setItem(STORE,JSON.stringify(data));return true;}catch(e){return false;}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
+function renderRoster(){const a=document.getElementById('advanced'),e=document.getElementById('experts');a.innerHTML='';e.innerHTML='';data.names.forEach((name,i)=>{const group=i<12?a:e;const row=document.createElement('div');row.className='player';row.dataset.original=i<12?'a':'e';const check=document.createElement('input');check.type='checkbox';check.id='cp'+i;check.className='present';check.setAttribute('aria-label','Présence '+name);const field=document.createElement('input');field.type='text';field.id='name'+i;field.value=name;field.autocomplete='off';field.setAttribute('aria-label','Nom du joueur '+(i+1));const elig=document.createElement('label');elig.className='elig';const move=document.createElement('input');move.type='checkbox';move.className='movable';move.setAttribute('aria-label','Peut changer de groupe : '+name);elig.append(move,document.createTextNode('Oui'));const num=document.createElement('span');num.className='num';num.id='num'+i;row.append(check,field,elig,num);group.appendChild(row);check.addEventListener('change',updateSummary);field.addEventListener('change',()=>{readNames();persist();});});}
+function rows(){return Array.from(document.querySelectorAll('.player'));}
+function readNames(){data.names=Array.from({length:24},(_,i)=>document.getElementById('name'+i).value.trim()||('Joueur '+(i+1)));}
+function presentRows(){return rows().filter(r=>r.querySelector('.present').checked);}
+function updateSummary(){const ar=rows().filter(r=>r.dataset.original==='a'&&r.querySelector('.present').checked).length;const er=rows().filter(r=>r.dataset.original==='e'&&r.querySelector('.present').checked).length;document.getElementById('summary').textContent=`Présents : ${ar+er} — Avancés : ${ar}, Experts : ${er}.`;}
+function shuffled(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function assignNumbers(groupRows,offset){
+ // Numéros consécutifs selon le nombre de présents : Avancés 1, 2, 3…; Experts 13, 14, 15…
+ // L’ordre des joueurs est mélangé et on évite leur numéro précédent quand c’est possible.
+ let available=Array.from({length:groupRows.length},(_,k)=>k+1+offset);
+ shuffled(available);const order=shuffled(groupRows.slice());const assigned=[];
+ order.forEach(r=>{const idx=Number(r.querySelector('input[type=text]').id.replace('name',''));const prev=data.lastNumbers[idx];let at=available.findIndex(n=>n!==prev);if(at<0)at=0;const n=available.splice(at,1)[0];r.querySelector('.num').textContent='N° '+n;assigned.push({idx,num:n,name:r.querySelector('input[type=text]').value.trim()});});return assigned;
 }
-function persist(){
-  try{localStorage.setItem(STORE,JSON.stringify(data));return true;}catch(e){return false;}
-}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function renderRoster(){
-  const a=document.getElementById("advanced"),e=document.getElementById("experts");
-  a.innerHTML="";e.innerHTML="";
-  data.names.forEach((name,i)=>{
-    const group=i<12?a:e;
-    const id="p"+i;
-    const row=document.createElement("div");row.className="player";
-    const check=document.createElement("input");check.type="checkbox";check.id="c"+id;check.setAttribute("aria-label","Présence "+name);
-    const field=document.createElement("input");field.type="text";field.id="name"+i;field.value=name;field.autocomplete="off";field.setAttribute("aria-label","Nom du joueur "+(i+1));
-    const num=document.createElement("span");num.className="num";num.id="num"+i;
-    row.append(check,field,num);group.appendChild(row);
-  });
-}
-function readNames(){data.names=data.names.map((_,i)=>document.getElementById("name"+i).value.trim()||("Joueur "+(i+1)));}
-function shuffled(arr){for(let i=arr.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-function assignGroup(indices,start){
-  const present=indices.filter(i=>document.getElementById("cp"+i).checked);
-  let available=shuffled(Array.from({length:12},(_,k)=>start+k));
-  const assigned={};
-  // Randomize player order, assigning a non-previous number whenever possible.
-  const order=shuffled(present.slice());
-  order.forEach(i=>{
-    const prev=data.lastNumbers[i];
-    let at=available.findIndex(n=>n!==prev);
-    if(at<0)at=0;
-    assigned[i]=available.splice(at,1)[0];
-  });
-  return assigned;
-}
-function showResult(assigned){
-  const adv=Object.keys(assigned).map(Number).filter(i=>i<12).sort((a,b)=>assigned[a]-assigned[b]);
-  const exp=Object.keys(assigned).map(Number).filter(i=>i>=12).sort((a,b)=>assigned[a]-assigned[b]);
-  const lines=["AVANCÉS"];
-  adv.forEach(i=>lines.push(assigned[i]+" — "+data.names[i]));
-  lines.push("","EXPERTS");
-  exp.forEach(i=>lines.push(assigned[i]+" — "+data.names[i]));
-  document.getElementById("result").textContent=lines.join("\n");
-}
-function assign(){
-  readNames();
-  const adv=assignGroup(Array.from({length:12},(_,i)=>i),1);
-  const exp=assignGroup(Array.from({length:12},(_,i)=>i+12),13);
-  const assigned={...adv,...exp};
-  for(let i=0;i<24;i++)document.getElementById("num"+i).textContent=assigned[i]===undefined?"":"N° "+assigned[i];
-  const session={date:new Date().toLocaleString("fr-CA"),assigned:{},names:data.names.slice()};
-  Object.keys(assigned).forEach(k=>{session.assigned[k]=assigned[k];data.lastNumbers[k]=assigned[k];});
-  data.history.push(session);
-  showResult(assigned);
-  const ok=persist();
-  document.getElementById("status").textContent=ok?"Attribution faite et historique mémorisé sur cet appareil.":"Attribution faite, mais la mémoire du navigateur est bloquée. Utilise « Exporter l’historique » pour garder une copie.";
-}
-function clearSession(){
-  for(let i=0;i<24;i++){document.getElementById("cp"+i).checked=false;document.getElementById("num"+i).textContent="";}
-  document.getElementById("result").textContent="Les numéros attribués apparaîtront ici.";
-  document.getElementById("status").textContent="Les coches et résultats affichés ont été effacés. L’historique des numéros précédents est conservé.";
-}
-function saveNames(){
-  readNames();const ok=persist();
-  document.getElementById("status").textContent=ok?"Noms enregistrés sur cet appareil.":"Noms modifiés à l’écran, mais la mémoire du navigateur est bloquée. Exporte une copie.";
-}
-function exportHistory(){
-  readNames();
-  const lines=["PICKLEBALL — COPIE DE SÉCURITÉ","NOMS"];
-  data.names.forEach((n,i)=>lines.push((i<12?"Avancé ":"Expert ")+(i<12?i+1:i+1)+" — "+n));
-  lines.push("","DERNIERS NUMÉROS");
-  data.names.forEach((n,i)=>{if(data.lastNumbers[i]!==undefined)lines.push(data.lastNumbers[i]+" — "+n);});
-  lines.push("","HISTORIQUE DES SÉANCES");
-  data.history.forEach((s,k)=>{lines.push("Séance "+(k+1)+" — "+s.date);Object.keys(s.assigned).sort((a,b)=>s.assigned[a]-s.assigned[b]).forEach(i=>lines.push(s.assigned[i]+" — "+s.names[Number(i)]));});
-  const text=lines.join("\n");
-  document.getElementById("result").textContent=text;
-  document.getElementById("status").textContent="Copie affichée ci-dessous. Sélectionne et copie le texte, puis colle-le dans Notes ou un courriel pour le conserver.";
-  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(()=>{document.getElementById("status").textContent="Historique copié si le navigateur a autorisé la copie. Tu peux aussi sélectionner le texte affiché ci-dessous.";}).catch(()=>{});}catch(e){}
-}
-function init(){
-  load();renderRoster();
-  // Ensure checkboxes have stable ids expected by assignGroup.
-  for(let i=0;i<24;i++){const c=document.getElementById("cp"+i);if(c)c.id="cp"+i;}
-  // Build rows with checkbox IDs cp0...cp23 (assign expects these).
-  document.querySelectorAll(".player input[type=checkbox]").forEach((c,i)=>{c.id="cp"+i;});
-  document.getElementById("assign").addEventListener("click",assign);
-  document.getElementById("clear").addEventListener("click",clearSession);
-  document.getElementById("saveNames").addEventListener("click",saveNames);
-  document.getElementById("export").addEventListener("click",exportHistory);
-}
+function assign(){readNames();const all=presentRows();rows().forEach(r=>{r.querySelector('.num').textContent='';r.dataset.final='';});const mode=document.querySelector('input[name="mode"]:checked').value;let a=all.filter(r=>r.dataset.original==='a'),e=all.filter(r=>r.dataset.original==='e'),moves=[];
+if(mode==='balance'){
+ const ae=a.filter(r=>r.querySelector('.movable').checked),ee=e.filter(r=>r.querySelector('.movable').checked);let best={am:0,em:0,diff:Math.abs(a.length-e.length),count:0};for(let am=0;am<=ae.length;am++)for(let em=0;em<=ee.length;em++){const diff=Math.abs((a.length-am+em)-(e.length-em+am)),count=am+em;if(diff<best.diff||(diff===best.diff&&count<best.count)){best={am,em,diff,count};}}
+ const moveA=ae.slice(0,best.am),moveE=ee.slice(0,best.em);a.forEach(r=>r.dataset.final='a');e.forEach(r=>r.dataset.final='e');moveA.forEach(r=>{r.dataset.final='e';moves.push(r.querySelector('input[type=text]').value+' (Avancés → Experts)');});moveE.forEach(r=>{r.dataset.final='a';moves.push(r.querySelector('input[type=text]').value+' (Experts → Avancés)');});
+}else{a.forEach(r=>r.dataset.final='a');e.forEach(r=>r.dataset.final='e');}
+let finalA=all.filter(r=>r.dataset.final==='a'),finalE=all.filter(r=>r.dataset.final==='e');if(finalA.length>12||finalE.length>12){document.getElementById('status').textContent='Impossible d’attribuer les numéros : un groupe dépasse 12 joueurs. Vérifie les présences ou autorise d’autres transferts.';return;}
+const aa=assignNumbers(finalA,0),ee=assignNumbers(finalE,12),assigned=[...aa,...ee];assigned.forEach(x=>{data.lastNumbers[x.idx]=x.num;});const session={date:new Date().toLocaleString('fr-CA'),assigned:{},names:data.names.slice(),mode:mode,groups:{advanced:finalA.map(r=>r.querySelector('input[type=text]').value.trim()),experts:finalE.map(r=>r.querySelector('input[type=text]').value.trim()),moves:moves}};assigned.forEach(x=>session.assigned[x.idx]=x.num);data.history.push(session);const ok=persist();const lines=['AVANCÉS ('+finalA.length+')'];aa.sort((x,y)=>x.num-y.num).forEach(x=>lines.push(x.num+' — '+x.name));lines.push('','EXPERTS ('+finalE.length+')');ee.sort((x,y)=>x.num-y.num).forEach(x=>lines.push(x.num+' — '+x.name));document.getElementById('result').textContent=lines.join('\n');document.getElementById('status').textContent=(mode==='balance'?'Équilibrage terminé. ':'Attribution des groupes habituels terminée. ')+(moves.length?'Transferts : '+moves.join(', ')+'. ':'Aucun transfert effectué. ')+(ok?'Historique sauvegardé sur cet appareil.':'Sauvegarde impossible; exporte une copie.');updateSummary();document.getElementById('summary').textContent=`Après attribution : ${finalA.length} Avancés / ${finalE.length} Experts.`;}
+function clearSession(){rows().forEach(r=>{r.querySelector('.present').checked=false;r.querySelector('.movable').checked=false;r.querySelector('.num').textContent='';r.dataset.final='';});updateSummary();document.getElementById('result').textContent='Les numéros attribués apparaîtront ici.';document.getElementById('status').textContent='Présences et autorisations effacées. Les noms et l’historique sont conservés.';}
+function saveNames(){readNames();document.getElementById('status').textContent=persist()?'Noms enregistrés sur cet appareil.':'Mémoire bloquée : exporte une copie de l’historique.';}
+function exportHistory(){readNames();const lines=['PICKLEBALL — COPIE DE SÉCURITÉ','NOMS'];data.names.forEach((n,i)=>lines.push((i<12?'Avancé ':'Expert ')+(i+1)+' — '+n));lines.push('','DERNIERS NUMÉROS');data.names.forEach((n,i)=>{if(data.lastNumbers[i]!==undefined)lines.push(data.lastNumbers[i]+' — '+n);});lines.push('','HISTORIQUE DES SÉANCES');data.history.forEach((s,k)=>{lines.push('Séance '+(k+1)+' — '+s.date);Object.keys(s.assigned||{}).sort((a,b)=>s.assigned[a]-s.assigned[b]).forEach(i=>lines.push(s.assigned[i]+' — '+(s.names[Number(i)]||data.names[Number(i)])));if(s.groups?.moves?.length)lines.push('Transferts : '+s.groups.moves.join(', '));});const txt=lines.join('\n');document.getElementById('result').textContent=txt;document.getElementById('status').textContent='Copie affichée ci-dessous. Tu peux sélectionner et copier le texte pour le conserver.';try{if(navigator.clipboard?.writeText)navigator.clipboard.writeText(txt).catch(()=>{});}catch(e){}}
+function init(){load();renderRoster();document.getElementById('assign').addEventListener('click',assign);document.getElementById('clear').addEventListener('click',clearSession);document.getElementById('saveNames').addEventListener('click',saveNames);document.getElementById('export').addEventListener('click',exportHistory);updateSummary();}
 init();
 })();
 </script>
