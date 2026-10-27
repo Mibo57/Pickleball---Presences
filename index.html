@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><title>Pickleball — présences et équilibre</title>
 <style>
-:root{color-scheme:light}body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f1f4f6;color:#18212b;margin:12px auto;padding:0 4px;max-width:850px}h1{font-size:26px;margin:16px 8px 8px}p.intro{margin:8px;background:white;padding:12px;border-radius:12px;line-height:1.4}section,.panel{background:white;border:1px solid #d8dee5;border-radius:15px;padding:12px;margin:12px 4px}h2{font-size:20px;margin:4px 0 10px}.player{display:grid;grid-template-columns:34px minmax(0,1fr) 54px 76px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e5e9ed}.player:last-child{border-bottom:0}.player.substitute{border-top:2px dashed #94a3b8;margin-top:4px;padding-top:12px}.player.substitute .playername{background:#f8fafc}.player.substitute .playername::placeholder{color:#64748b;font-size:13px}.player input[type=checkbox]{width:23px;height:23px;accent-color:#0876b9;margin:0}.player input[type=text]{box-sizing:border-box;width:100%;min-width:0;font-size:16px;padding:9px;border:1px solid #c6d0da;border-radius:8px}.num{grid-column:3;grid-row:1}.elig{grid-column:4;grid-row:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;text-align:center;color:#475569}.num{text-align:right;font-weight:700;color:#075985;font-size:14px}.labels{display:grid;grid-template-columns:34px minmax(0,1fr) 54px 76px;gap:8px;font-size:12px;color:#64748b;margin:0 0 5px}.labels span:nth-child(3){text-align:right}.labels span:last-child{text-align:center}button{padding:12px;border:0;border-radius:10px;background:#075985;color:white;font-size:16px;margin:4px 3px 4px 0}.secondary{background:#475569}.danger{background:#9f1239}#status{background:#eaf6ee;padding:10px;border-radius:9px;white-space:pre-wrap;line-height:1.4}.summary{font-weight:650;padding:10px;background:#eef5fb;border-radius:9px;margin:8px 0}.small{font-size:13px;color:#475569;line-height:1.4}.groupTag{font-size:12px;color:#64748b}.mode{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid #e5e9ed;line-height:1.35}.mode input{width:20px;height:20px;flex:0 0 auto;margin-top:2px}.mode small{color:#475569}.mode:last-of-type{border-bottom:0}
+:root{color-scheme:light}body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f1f4f6;color:#18212b;margin:12px auto;padding:0 4px;max-width:850px}h1{font-size:26px;margin:16px 8px 8px}p.intro{margin:8px;background:white;padding:12px;border-radius:12px;line-height:1.4}section,.panel{background:white;border:1px solid #d8dee5;border-radius:15px;padding:12px;margin:12px 4px}h2{font-size:20px;margin:4px 0 10px}.player{display:grid;grid-template-columns:34px minmax(0,1fr) 54px 76px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e5e9ed}.player:last-child{border-bottom:0}.player input[type=checkbox]{width:23px;height:23px;accent-color:#0876b9;margin:0}.player input[type=text]{box-sizing:border-box;width:100%;min-width:0;font-size:16px;padding:9px;border:1px solid #c6d0da;border-radius:8px}.num{grid-column:3;grid-row:1}.elig{grid-column:4;grid-row:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;text-align:center;color:#475569}.num{text-align:right;font-weight:700;color:#075985;font-size:14px}.labels{display:grid;grid-template-columns:34px minmax(0,1fr) 54px 76px;gap:8px;font-size:12px;color:#64748b;margin:0 0 5px}.labels span:nth-child(3){text-align:right}.labels span:last-child{text-align:center}button{padding:12px;border:0;border-radius:10px;background:#075985;color:white;font-size:16px;margin:4px 3px 4px 0}.secondary{background:#475569}.danger{background:#9f1239}#status{background:#eaf6ee;padding:10px;border-radius:9px;white-space:pre-wrap;line-height:1.4}.summary{font-weight:650;padding:10px;background:#eef5fb;border-radius:9px;margin:8px 0}.small{font-size:13px;color:#475569;line-height:1.4}.groupTag{font-size:12px;color:#64748b}.mode{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid #e5e9ed;line-height:1.35}.mode input{width:20px;height:20px;flex:0 0 auto;margin-top:2px}.mode small{color:#475569}.mode:last-of-type{border-bottom:0}
 </style></head><body>
 <h1>Pickleball — présences et équilibre</h1>
 <p class="intro">Choisis le mode pour cette séance. Coche les joueurs présents. L’application évite, autant que possible, de répéter le numéro de la séance précédente.</p>
@@ -19,30 +19,17 @@ let data={last:{},names:[],history:[]};
 function rows(){return [...document.querySelectorAll('.player')];}
 function make(id,names,group){document.getElementById(id).innerHTML=names.map((n,i)=>`<div class="player" data-original="${group}"><input class="present" type="checkbox" aria-label="Présence de ${n}"><input class="playername" type="text" value="${n.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;')}" aria-label="Nom joueur ${i+1}"><label class="elig"><input class="movable" type="checkbox" aria-label="Autoriser changement de groupe pour ${n}">Oui</label><span class="num"></span></div>`).join('');}
 make('a',namesA,'a');make('e',namesE,'e');
-// La dernière ligne de chaque groupe est le remplaçant de la séance.
-// Son nom est volontairement temporaire et ne doit pas être sauvegardé.
 function markSubstitute(groupId,label){
- const list=document.getElementById(groupId);
- const row=list.lastElementChild;
+ const row=document.getElementById(groupId).lastElementChild;
  row.classList.add('substitute');
  row.querySelector('.playername').value='';
  row.querySelector('.playername').placeholder=label;
  row.querySelector('.playername').setAttribute('aria-label',label);
- row.querySelector('.present').setAttribute('aria-label','Présence du '+label);
- row.querySelector('.movable').setAttribute('aria-label','Autoriser changement de groupe pour '+label);
 }
 markSubstitute('a','Nom du remplaçant — Avancés');
 markSubstitute('e','Nom du remplaçant — Experts');
 function save(silent=false){data.names=rows().map(r=>r.classList.contains('substitute')?'':r.querySelector('.playername').value);try{localStorage.setItem(key,JSON.stringify(data));if(!silent)status.textContent='Noms, derniers numéros et historique sauvegardés sur cet appareil.'}catch(err){status.textContent='Sauvegarde automatique bloquée. Utilise « Exporter la sauvegarde ».'}}
-function load(){try{let d=JSON.parse(localStorage.getItem(key)||'null');if(d){data={last:d.last||{},names:d.names||[],history:d.history||[]};rows().forEach((r,i)=>{
- if(r.classList.contains('substitute')){
-   r.querySelector('.playername').value='';
-   r.querySelector('.present').checked=false;
-   r.querySelector('.movable').checked=false;
- } else if(data.names[i]!==undefined) {
-   r.querySelector('.playername').value=data.names[i];
- }
-})}}catch(e){}}
+function load(){try{let d=JSON.parse(localStorage.getItem(key)||'null');if(d){data={last:d.last||{},names:d.names||[],history:d.history||[]};rows().forEach((r,i)=>{if(r.classList.contains('substitute')){r.querySelector('.playername').value='';r.querySelector('.present').checked=false;r.querySelector('.movable').checked=false;}else if(data.names[i]!==undefined)r.querySelector('.playername').value=data.names[i]})}}catch(e){}}
 function presentRows(){return rows().filter(r=>r.querySelector('.present').checked)}
 function updateSummary(){let a=rows().filter(r=>r.dataset.original==='a'&&r.querySelector('.present').checked).length,e=rows().filter(r=>r.dataset.original==='e'&&r.querySelector('.present').checked).length;summary.textContent=`Présents : ${a+e} — Avancés : ${a}, Experts : ${e}. Les cases « Peut changer » autorisent les transferts.`}
 rows().forEach(r=>{r.querySelector('.present').addEventListener('change',updateSummary);r.querySelector('.playername').addEventListener('change',()=>save(true));});
@@ -71,18 +58,11 @@ document.getElementById('assign').onclick=()=>{
  if(finalA.length>12||finalE.length>12){status.textContent='Attention : un groupe dépasse 12 joueurs. Il est impossible d’attribuer un numéro unique de 1 à 24 à plus de 24 joueurs ou à plus de 12 dans un groupe.';return;}
  shuffleAvoidRepeat(finalA,0);shuffleAvoidRepeat(finalE,12);
  let movedNames=[...moveA.map(r=>r.querySelector('.playername').value+' (Avancés → Experts)'),...moveE.map(r=>r.querySelector('.playername').value+' (Experts → Avancés)')];
- data.history.push({date:new Date().toISOString(),advanced:finalA.map(r=>r.querySelector('.playername').value),experts:finalE.map(r=>r.querySelector('.playername').value),moves:movedNames,numbers:presentRows().map(r=>({name:r.querySelector('.playername').value,group:r.dataset.final,num:r.querySelector('.num').textContent}))});
- // L'historique conserve le nom utilisé aujourd'hui, mais le champ est vidé après l'attribution.
- rows().filter(r=>r.classList.contains('substitute')).forEach(r=>{
-   r.querySelector('.playername').value='';
-   r.querySelector('.present').checked=false;
-   r.querySelector('.movable').checked=false;
- });
- save(true);
+ data.history.push({date:new Date().toISOString(),advanced:finalA.filter(r=>!r.classList.contains('substitute')).map(r=>r.querySelector('.playername').value),experts:finalE.filter(r=>!r.classList.contains('substitute')).map(r=>r.querySelector('.playername').value),moves:movedNames.filter(n=>!rows().some(r=>r.classList.contains('substitute')&&n.startsWith(r.querySelector('.playername').value))),numbers:presentRows().filter(r=>!r.classList.contains('substitute')).map(r=>({name:r.querySelector('.playername').value,group:r.dataset.final,num:r.querySelector('.num').textContent}))});save(true);
  status.textContent=(mode==='habituel'?'Attribution terminée en mode groupes habituels.':'Équilibrage terminé.')+`\n${finalA.length} Avancés et ${finalE.length} Experts.\n`+(movedNames.length?'Transferts : '+movedNames.join(', ')+'.':'Aucun transfert effectué.')+'\nLes numéros ont été attribués en tenant compte des derniers numéros connus.';
  summary.textContent=`Groupes : ${finalA.length} Avancés / ${finalE.length} Experts.`;renderResult(finalA,finalE,movedNames);
 };
-document.getElementById('clear').onclick=()=>{rows().forEach(r=>{r.querySelector('.present').checked=false;r.querySelector('.movable').checked=false;r.querySelector('.num').textContent='';r.dataset.final='';});updateSummary();document.getElementById('sessionResult').textContent='Le résultat apparaîtra ici après l’attribution des numéros.';status.textContent='Présences, autorisations de transfert et numéros effacés. Les derniers numéros et l’historique restent sauvegardés.';};
+document.getElementById('clear').onclick=()=>{rows().forEach(r=>{r.querySelector('.present').checked=false;r.querySelector('.movable').checked=false;r.querySelector('.num').textContent='';r.dataset.final='';if(r.classList.contains('substitute'))r.querySelector('.playername').value='';});save(true);updateSummary();document.getElementById('sessionResult').textContent='Le résultat apparaîtra ici après l’attribution des numéros.';status.textContent='Présences, autorisations de transfert et numéros effacés. Les derniers numéros et l’historique restent sauvegardés.';};
 document.getElementById('save').onclick=()=>save();
 document.getElementById('export').onclick=()=>{save(true);let b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='sauvegarde-pickleball.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);status.textContent='Demande d’exportation envoyée au navigateur.';};
 load();updateSummary();
